@@ -21,7 +21,12 @@ fn starts_with_package(line: &str) -> bool {
 }
 
 fn analyze_packages(path: &str) -> Result<(), Box<dyn std::error::Error>> {
-	find_dir(path, None)?;
+	let handler = |s: &str| -> Result<(), Box<dyn std::error::Error>> {
+		println!("{}", s);
+		return Ok(());
+	};
+
+	find_dir(path, Some(&handler))?;
 
 	return Ok(());
 }
