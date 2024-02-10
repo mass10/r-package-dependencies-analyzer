@@ -1,5 +1,5 @@
 mod application;
-mod service;
+mod services;
 
 /// Rust アプリケーションのエントリーポイント
 fn main() {
