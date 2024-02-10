@@ -2,7 +2,7 @@
 //! アプリケーション本体の実装
 //!
 
-use crate::service;
+use crate::services;
 
 #[allow(unused)]
 fn usage() {
@@ -23,7 +23,7 @@ impl YarnFileAnalyzer {
 		}
 
 		// 分析
-		service::analyze_yarn_lock(path)?;
+		services::analyze_yarn_lock(path)?;
 
 		return Ok(());
 	}
@@ -46,7 +46,7 @@ impl Application for ApplicationImpl {
 		};
 
 		// ディレクトリーを再帰的に探索します。
-		let search = service::DirectorySearch::new();
+		let search = services::DirectorySearch::new();
 		search.find_dir(path, &mut handler)?;
 
 		return Ok(());
