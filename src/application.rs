@@ -29,34 +29,6 @@ impl YarnFileAnalyzer {
 	}
 }
 
-type FileHandler = dyn FnMut(&str) -> Result<(), Box<dyn std::error::Error>> + 'static;
-
-fn find_dir(path: &str, handler: &mut FileHandler) -> Result<(), Box<dyn std::error::Error>> {
-	let metadata = std::fs::metadata(path)?;
-	if metadata.is_dir() {
-		let name = std::path::Path::new(path).file_name().unwrap().to_str().unwrap();
-		if name == ".git" {
-			return Ok(());
-		}
-		if name == "node_modules" {
-			return Ok(());
-		}
-		if name == "tartget" {
-			return Ok(());
-		}
-		let entries = std::fs::read_dir(path)?;
-		for entry in entries {
-			let entry = entry?;
-			let path = entry.path();
-			find_dir(&path.display().to_string(), handler)?;
-		}
-	} else if metadata.is_file() {
-		handler(path)?;
-	}
-
-	return Ok(());
-}
-
 pub trait Application {
 	/// アプリケーションのエントリーポイント
 	fn run(&self, path: &str) -> Result<(), Box<dyn std::error::Error>>;
@@ -74,7 +46,8 @@ impl Application for ApplicationImpl {
 		};
 
 		// ディレクトリーを再帰的に探索します。
-		find_dir(path, &mut handler)?;
+		let search = service::DirectorySearch::new();
+		search.find_dir(path, &mut handler)?;
 
 		return Ok(());
 	}
