@@ -6,6 +6,59 @@ use std::io::BufRead;
 
 use crate::util;
 
+fn summary_package_tree(
+	ancestor: &std::collections::BTreeSet<String>,
+	package_tree: &std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
+	package: &str,
+	depth: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
+	if ancestor.contains(package) {
+		// ループを検出
+		let indent = "\x09".repeat(depth);
+		println!("{}{}: (LOOP DETECTED)", indent, package);
+        return Ok(());
+	}
+
+	// 20 レベル以上の深さは表示しない
+	if 50 <= depth {
+		let prefix = "\x09".repeat(depth);
+		println!("{}... (too deep)", &prefix);
+		return Err("".into());
+	}
+
+	if package == "" {
+		for (package, dependencies) in package_tree.iter() {
+			println!("{}:", package);
+			// 依存パッケージを表示
+			for dep in dependencies.iter() {
+				// summary_package_tree には正しい祖先情報を渡す
+				let mut ancestor: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+				ancestor.insert(package.to_string());
+
+				summary_package_tree(&ancestor, package_tree, dep, depth + 1)?;
+			}
+		}
+	} else {
+		let prefix = "\x09".repeat(depth);
+		println!("{}{}:", prefix, package);
+		let result = package_tree.get(package);
+		if result.is_none() {
+			return Ok(());
+		}
+		let dependencies = result.unwrap();
+		// 依存パッケージを表示
+		for dep in dependencies.iter() {
+			// summary_package_tree には正しい祖先情報を渡す
+			let mut ancestor = ancestor.clone();
+			ancestor.insert(package.to_string());
+
+			summary_package_tree(&ancestor, package_tree, dep, depth + 1)?;
+		}
+	}
+
+	return Ok(());
+}
+
 /// yarn.lock の分析
 pub fn analyze_yarn_lock(path: &str) -> Result<(), Box<dyn std::error::Error>> {
 	let file = std::fs::File::open(path)?;
@@ -87,12 +140,9 @@ pub fn analyze_yarn_lock(path: &str) -> Result<(), Box<dyn std::error::Error>> {
 	}
 
 	// 依存パッケージのサマリーを表示
-	for (package, dependencies) in package_tree.iter() {
-		println!("{}:", package);
-		for dependency in dependencies.iter() {
-			println!("    {}", dependency);
-		}
-	}
+	let path: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+	summary_package_tree(&path, &package_tree, "", 0)?;
+	// summary_package_tree(&package_tree, "keyv@^3.0.0", 0);
 
 	return Ok(());
 }
