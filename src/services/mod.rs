@@ -2,157 +2,18 @@
 //! 各種サービスの実装
 //!
 
-use std::io::BufRead;
+pub mod yarn;
 
-type DependencyPackage = (String, String);
+/// ファイルハンドラ
+pub struct PackageFileAnalyzer {}
 
-///
-fn start_with_alpha(s: &str) -> bool {
-	// 1文字目がアルファベットかどうか
-	match s.chars().next() {
-		Some(c) => c.is_ascii_alphabetic(),
-		None => false,
-	}
-}
-
-///
-fn starts_with_package(line: &str) -> bool {
-	return start_with_alpha(line);
-}
-
-/// 依存パッケージの行を解析
-fn parse_dependency_line(line: &str) -> Result<DependencyPackage, Box<dyn std::error::Error>> {
-	// 依存パッケージの行を解析
-	let regex = regex::Regex::new("^    \"?([@\\/a-zA-Z0-9_\\-\\.]+)\"? \"(.+)\"$")?;
-
-	let result = regex.captures(line);
-	if result.is_none() {
-		// 即時終了
-		eprintln!("[ERROR] (parse_dependency_line): {}", line);
-		return Err("".into());
-	}
-
-	let captures = result.unwrap();
-	let name = captures.get(1).unwrap().as_str();
-	let version = captures.get(2).unwrap().as_str();
-
-	return Ok((name.to_string(), version.to_string()));
-}
-
-/// yarn.lock の分析
-pub fn analyze_yarn_lock(path: &str) -> Result<(), Box<dyn std::error::Error>> {
-	let file = std::fs::File::open(path)?;
-	let reader = std::io::BufReader::new(file);
-
-	// trim handler
-	let trimmer = |s: &str| -> String { s.trim().to_string() };
-
-	// 依存パッケージのツリー
-	let mut package_tree: std::collections::BTreeMap<String, std::collections::BTreeSet<String>> = std::collections::BTreeMap::new();
-
-	let mut current_packages: Vec<String> = Vec::new();
-
-	// 現在のセクション
-	let mut current_section = "";
-
-	for line in reader.lines() {
-		let line = line.unwrap();
-		if line == "" {
-			// セクションの終わり
-			current_section = "";
-		} else if current_section == "" {
-			// グローバルなセクション
-			if starts_with_package(&line) && line.ends_with(":") {
-				let items = line.split(",").map(trimmer).collect::<Vec<String>>();
-				current_packages.clear();
-				for item in items {
-					current_packages.push(item);
-				}
-
-				current_section = "package";
-			} else {
-				eprintln!("[ERROR] (analyze_yarn_lock): {}", line);
-			}
-		} else if current_section == "package" {
-			// パッケージのセクション
-			if line == "  dependencies:" {
-				current_section = "dependencies";
-			}
-		} else if current_section == "dependencies" {
-			if line == "  optionalDependencies:" {
-				// 依存パッケージのセクション 終わり
-				current_section = "";
-				continue;
-			}
-
-			// 依存パッケージのセクション
-			let item = parse_dependency_line(&line)?;
-
-			for package in current_packages.iter() {
-				// キーを持っていない場合は追加
-				if !package_tree.contains_key(package) {
-					package_tree.insert(package.to_string(), std::collections::BTreeSet::new());
-				}
-				// dependencies を取得して
-				let set = package_tree.get_mut(package).unwrap();
-				// 追加
-				set.insert(item.0.to_string());
-			}
-		}
-	}
-
-	// 依存パッケージのサマリーを表示
-	for (package, dependencies) in package_tree.iter() {
-		println!("{}:", package);
-		for dependency in dependencies.iter() {
-			println!("    {}", dependency);
-		}
-	}
-
-	return Ok(());
-}
-
-/// ファイルハンドラーの型定義です。
-type FileHandler = dyn FnMut(&str) -> Result<(), Box<dyn std::error::Error>> + 'static;
-
-pub struct DirectorySearch {
-	/// 除外ディレクトリーの定義
-	exclude_directories: std::collections::BTreeSet<String>,
-}
-
-impl DirectorySearch {
-	/// 新しいインスタンスを返します。
-	pub fn new() -> DirectorySearch {
-		let mut exclude_directories = std::collections::BTreeSet::new();
-		exclude_directories.insert(".git".to_string());
-		exclude_directories.insert("node_modules".to_string());
-		exclude_directories.insert("target".to_string());
-
-		return DirectorySearch {
-			exclude_directories: exclude_directories,
-		};
-	}
-
-	/// ディレクトリーを再帰的に探索します。
-	///
-	/// # Arguments
-	/// * `path` - 探索するディレクトリーのパス
-	/// * `handler` - ファイルハンドラー
-	pub fn find_dir(&self, path: &str, handler: &mut FileHandler) -> Result<(), Box<dyn std::error::Error>> {
-		let metadata = std::fs::metadata(path)?;
-		if metadata.is_dir() {
-			let name = std::path::Path::new(path).file_name().unwrap().to_str().unwrap();
-			if self.exclude_directories.contains(name) {
-				return Ok(());
-			}
-			let entries = std::fs::read_dir(path)?;
-			for entry in entries {
-				let entry = entry?;
-				let path = entry.path();
-				self.find_dir(&path.display().to_string(), handler)?;
-			}
-		} else if metadata.is_file() {
-			handler(path)?;
+impl PackageFileAnalyzer {
+	/// パッケージファイルの分析
+	pub fn analyze(&mut self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+		let name = std::path::Path::new(path).file_name().unwrap().to_str().unwrap();
+		if name == "yarn.lock" {
+			// 分析
+			yarn::analyze_yarn_lock(path)?;
 		}
 
 		return Ok(());
