@@ -5,7 +5,10 @@
 pub mod yarn;
 
 /// ファイルハンドラ
-pub struct PackageFileAnalyzer {}
+pub struct PackageFileAnalyzer {
+	/// キーワード
+	pub keywords: Vec<String>,
+}
 
 impl PackageFileAnalyzer {
 	/// パッケージファイルの分析
@@ -13,7 +16,7 @@ impl PackageFileAnalyzer {
 		let name = std::path::Path::new(path).file_name().unwrap().to_str().unwrap();
 		if name == "yarn.lock" {
 			// 分析
-			yarn::analyze_yarn_lock(path)?;
+			yarn::analyze_yarn_lock(path, &self.keywords)?;
 		}
 
 		return Ok(());
