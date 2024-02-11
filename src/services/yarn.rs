@@ -6,6 +6,7 @@ use std::io::BufRead;
 
 use crate::util;
 
+/// サマリーを表示
 fn summary_package_tree(
 	ancestor: &Vec<String>,
 	package_tree: &std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
@@ -160,7 +161,6 @@ pub fn analyze_yarn_lock(path: &str, keywords: &Vec<String>) -> Result<(), Box<d
 	// 依存パッケージのサマリーを表示
 	let path: Vec<String> = Vec::new();
 	let _result = summary_package_tree(&path, &package_tree, "", 0, &keywords)?;
-	// summary_package_tree(&package_tree, "keyv@^3.0.0", 0);
 
 	return Ok(());
 }
