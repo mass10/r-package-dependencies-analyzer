@@ -11,21 +11,23 @@ fn summary_package_tree(
 	package_tree: &std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
 	package: &str,
 	depth: usize,
-	keyword: &str,
+	keywords: &Vec<String>,
 ) -> Result<bool, Box<dyn std::error::Error>> {
 	// 検索キーワードによるマッチング
-	if package.contains(keyword) {
-        let mut index = 0;
-        for dep in ancestor {
-            println!("{}{}", "\x09".repeat(index), dep);
-            index += 1;
-        }
-		println!("{}{}", "\x09".repeat(index), package);
-		return Ok(true);
+	for keyword in keywords {
+		if package.contains(keyword) {
+			let mut index = 0;
+			for dep in ancestor {
+				println!("{}{}", "\x09".repeat(index), dep);
+				index += 1;
+			}
+			println!("{}{}", "\x09".repeat(index), package);
+			return Ok(true);
+		}
 	}
 
+	// ループを検出したら即時終了
 	if ancestor.contains(&package.to_string()) {
-		// ループを検出
 		// let indent = "\x09".repeat(depth);
 		// println!("{}{}: (LOOP DETECTED)", indent, package);
 		return Ok(false);
@@ -40,17 +42,16 @@ fn summary_package_tree(
 
 	if package == "" {
 		for (package, dependencies) in package_tree.iter() {
-			// println!("{}:", package);
+			// println!("- {}:", package);
 			// 依存パッケージを表示
 			for dep in dependencies.iter() {
 				// summary_package_tree には正しい祖先情報を渡す
 				let mut ancestor: Vec<String> = Vec::new();
 				ancestor.push(package.to_string());
 
-				let found = summary_package_tree(&ancestor, package_tree, dep, depth + 1, keyword)?;
-				if found {
-					return Ok(true);
-				}
+				let _found = summary_package_tree(&ancestor, package_tree, dep, depth + 1, keywords)?;
+
+				// 結果は無視してすべて走査
 			}
 		}
 
@@ -69,7 +70,7 @@ fn summary_package_tree(
 			let mut ancestor = ancestor.clone();
 			ancestor.push(package.to_string());
 
-			let _result = summary_package_tree(&ancestor, package_tree, dep, depth + 1, keyword)?;
+			let _result = summary_package_tree(&ancestor, package_tree, dep, depth + 1, keywords)?;
 		}
 
 		return Ok(false);
@@ -77,7 +78,7 @@ fn summary_package_tree(
 }
 
 /// yarn.lock の分析
-pub fn analyze_yarn_lock(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn analyze_yarn_lock(path: &str, keywords: &Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
 	let file = std::fs::File::open(path)?;
 	let reader = std::io::BufReader::new(file);
 	let trimmer = &str::trim;
@@ -158,7 +159,7 @@ pub fn analyze_yarn_lock(path: &str) -> Result<(), Box<dyn std::error::Error>> {
 
 	// 依存パッケージのサマリーを表示
 	let path: Vec<String> = Vec::new();
-	let _result = summary_package_tree(&path, &package_tree, "", 0, "iconv")?;
+	let _result = summary_package_tree(&path, &package_tree, "", 0, &keywords)?;
 	// summary_package_tree(&package_tree, "keyv@^3.0.0", 0);
 
 	return Ok(());
