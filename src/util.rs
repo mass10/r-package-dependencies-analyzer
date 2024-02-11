@@ -34,7 +34,7 @@ impl DirectorySearch {
 	pub fn find_dir(&self, path: &str, handler: &mut FileHandler) -> Result<(), Box<dyn std::error::Error>> {
 		let metadata = std::fs::metadata(path)?;
 		if metadata.is_dir() {
-			let name = std::path::Path::new(path).file_name().unwrap().to_str().unwrap();
+			let name = std::path::Path::new(path).file_name().unwrap_or_default().to_str().unwrap();
 			if self.exclude_directories.contains(name) {
 				return Ok(());
 			}
