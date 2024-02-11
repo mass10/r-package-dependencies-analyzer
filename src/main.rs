@@ -1,31 +1,32 @@
-mod application;
+mod conf;
 mod services;
 mod util;
 
-/// 使用方法
-fn usage() {
-	let pkg_name = env!("CARGO_PKG_NAME");
-	eprintln!("Usage: {}", pkg_name);
+/// エラーを報告します。
+fn report_error(error: Box<dyn std::error::Error>) {
+	let message = error.to_string();
+	if message == "" {
+		return;
+	}
+	eprintln!("Error: {}", message);
 }
 
 /// Rust アプリケーションのエントリーポイント
 fn main() {
-	let args = std::env::args().skip(1).collect::<Vec<String>>();
-	if args.len() != 1 {
-		usage();
+	// コンフィギュレーション
+	let result = conf::configure();
+	if result.is_err() {
+		report_error(result.err().unwrap());
 		std::process::exit(1);
 	}
+	let conf = result.unwrap();
+	let conf = &(*conf);
 
 	// アプリケーションを実行
-	let mut app = application::create_application();
-	let result = app.run(&args[0]);
+	let mut app = conf.create_application();
+	let result = app.run(conf);
 	if result.is_err() {
-		let error = result.err().unwrap();
-		let message: String = error.to_string();
-		if message == "" {
-			std::process::exit(1);
-		}
-		eprintln!("Error: {:?}", error);
+		report_error(result.err().unwrap());
 		std::process::exit(1);
 	}
 }
