@@ -7,16 +7,28 @@ use std::io::BufRead;
 use crate::util;
 
 fn summary_package_tree(
-	ancestor: &std::collections::BTreeSet<String>,
+	ancestor: &Vec<String>,
 	package_tree: &std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
 	package: &str,
 	depth: usize,
-) -> Result<(), Box<dyn std::error::Error>> {
-	if ancestor.contains(package) {
+	keyword: &str,
+) -> Result<bool, Box<dyn std::error::Error>> {
+	// 検索キーワードによるマッチング
+	if package.contains(keyword) {
+        let mut index = 0;
+        for dep in ancestor {
+            println!("{}{}", "\x09".repeat(index), dep);
+            index += 1;
+        }
+		println!("{}{}", "\x09".repeat(index), package);
+		return Ok(true);
+	}
+
+	if ancestor.contains(&package.to_string()) {
 		// ループを検出
-		let indent = "\x09".repeat(depth);
-		println!("{}{}: (LOOP DETECTED)", indent, package);
-        return Ok(());
+		// let indent = "\x09".repeat(depth);
+		// println!("{}{}: (LOOP DETECTED)", indent, package);
+		return Ok(false);
 	}
 
 	// 20 レベル以上の深さは表示しない
@@ -28,35 +40,40 @@ fn summary_package_tree(
 
 	if package == "" {
 		for (package, dependencies) in package_tree.iter() {
-			println!("{}:", package);
+			// println!("{}:", package);
 			// 依存パッケージを表示
 			for dep in dependencies.iter() {
 				// summary_package_tree には正しい祖先情報を渡す
-				let mut ancestor: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
-				ancestor.insert(package.to_string());
+				let mut ancestor: Vec<String> = Vec::new();
+				ancestor.push(package.to_string());
 
-				summary_package_tree(&ancestor, package_tree, dep, depth + 1)?;
+				let found = summary_package_tree(&ancestor, package_tree, dep, depth + 1, keyword)?;
+				if found {
+					return Ok(true);
+				}
 			}
 		}
+
+		return Ok(true);
 	} else {
-		let prefix = "\x09".repeat(depth);
-		println!("{}{}:", prefix, package);
+		// let prefix = "\x09".repeat(depth);
+		// println!("{}{}:", prefix, package);
 		let result = package_tree.get(package);
 		if result.is_none() {
-			return Ok(());
+			return Ok(false);
 		}
 		let dependencies = result.unwrap();
 		// 依存パッケージを表示
 		for dep in dependencies.iter() {
 			// summary_package_tree には正しい祖先情報を渡す
 			let mut ancestor = ancestor.clone();
-			ancestor.insert(package.to_string());
+			ancestor.push(package.to_string());
 
-			summary_package_tree(&ancestor, package_tree, dep, depth + 1)?;
+			let _result = summary_package_tree(&ancestor, package_tree, dep, depth + 1, keyword)?;
 		}
-	}
 
-	return Ok(());
+		return Ok(false);
+	}
 }
 
 /// yarn.lock の分析
@@ -140,8 +157,8 @@ pub fn analyze_yarn_lock(path: &str) -> Result<(), Box<dyn std::error::Error>> {
 	}
 
 	// 依存パッケージのサマリーを表示
-	let path: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
-	summary_package_tree(&path, &package_tree, "", 0)?;
+	let path: Vec<String> = Vec::new();
+	let _result = summary_package_tree(&path, &package_tree, "", 0, "iconv")?;
 	// summary_package_tree(&package_tree, "keyv@^3.0.0", 0);
 
 	return Ok(());
